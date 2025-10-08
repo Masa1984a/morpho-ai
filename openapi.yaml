@@ -1,0 +1,475 @@
+openapi: 3.1.0
+info:
+  title: Crypto Insight Ingestor API
+  version: 1.0.0
+  description: |
+    自動収集・要約生成システム for WLD, USDC, WBTC, WETH
+
+    このAPIは、4つの暗号資産について最新の市況情報を提供します。
+    全てのエンドポイントはBearer token認証が必要です。
+
+servers:
+  - url: https://your-domain.vercel.app
+    description: Production server
+  - url: http://localhost:3000
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/assets:
+    get:
+      summary: Get all assets
+      description: 登録されている全資産の一覧を取得
+      tags:
+        - Assets
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AssetListItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/assets/{symbol}/summary:
+    get:
+      summary: Get latest summary for an asset
+      description: 指定された資産の最新サマリを取得
+      tags:
+        - Assets
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [WLD, USDC, WBTC, WETH]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetSummary'
+        '400':
+          description: Invalid symbol
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Asset or summary not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/assets/{symbol}/prices:
+    get:
+      summary: Get price series for an asset
+      description: 指定された資産の価格系列を取得
+      tags:
+        - Assets
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [WLD, USDC, WBTC, WETH]
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [1d, 30d]
+            default: 1d
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [hour, day]
+            default: hour
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceSeries'
+        '400':
+          description: Invalid parameters
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Asset not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/runs/{id}:
+    get:
+      summary: Get run metadata
+      description: 指定された実行の詳細情報を取得
+      tags:
+        - Runs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Run not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/ingest/hourly:
+    post:
+      summary: Trigger hourly ingest job
+      description: 毎時実行される収集ジョブ（手動実行用）
+      tags:
+        - Ingest
+      security:
+        - CronAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Job completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/ingest/daily:
+    post:
+      summary: Trigger daily ingest job
+      description: 毎日実行される収集ジョブ（手動実行用）
+      tags:
+        - Ingest
+      security:
+        - CronAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Job completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token authentication
+    CronAuth:
+      type: apiKey
+      in: header
+      name: x-cron-secret
+      description: Cron secret for scheduled jobs
+
+  schemas:
+    AssetListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          enum: [WLD, USDC, WBTC, WETH]
+        name:
+          type: string
+        category:
+          type: string
+          enum: [coin, stable, wrapped]
+        chains:
+          type: object
+          nullable: true
+        officialUrls:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        lastUpdate:
+          type: string
+          format: date-time
+          nullable: true
+
+    AssetSummary:
+      type: object
+      properties:
+        asset:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            symbol:
+              type: string
+            name:
+              type: string
+            category:
+              type: string
+        overview_md:
+          type: string
+          description: Overview section in Markdown
+        market_1d_md:
+          type: string
+          description: Last 24h market section in Markdown
+        market_30d_md:
+          type: string
+          description: Last 30d market section in Markdown
+        outlook_md:
+          type: string
+          description: Outlook section in Markdown
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        citations:
+          type: array
+          items:
+            type: string
+            format: uuid
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        run_meta:
+          $ref: '#/components/schemas/RunMeta'
+        created_at:
+          type: string
+          format: date-time
+
+    Source:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+          nullable: true
+        domain:
+          type: string
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        relevance_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+
+    PriceSeries:
+      type: object
+      properties:
+        asset:
+          type: object
+          properties:
+            symbol:
+              type: string
+            name:
+              type: string
+        range:
+          type: string
+          enum: [1d, 30d]
+        interval:
+          type: string
+          enum: [hour, day]
+        count:
+          type: integer
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Price'
+
+    Price:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ts:
+          type: string
+          format: date-time
+        priceUsd:
+          type: string
+          description: Decimal as string
+        marketCapUsd:
+          type: string
+          nullable: true
+        volume24hUsd:
+          type: string
+          nullable: true
+
+    RunDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [hourly, daily]
+        status:
+          type: string
+          enum: [pending, success, fail]
+        model:
+          type: string
+        reasoning_effort:
+          type: string
+          enum: [low, medium, high]
+          nullable: true
+        verbosity:
+          type: string
+          enum: [low, medium, high]
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        token_in:
+          type: integer
+          nullable: true
+        token_out:
+          type: integer
+          nullable: true
+        cost_usd:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        summaries:
+          type: object
+          properties:
+            count:
+              type: integer
+            items:
+              type: array
+              items:
+                type: object
+        sources:
+          type: object
+          properties:
+            count:
+              type: integer
+            unique_domains:
+              type: integer
+            domains:
+              type: array
+              items:
+                type: string
+            avg_relevance:
+              type: number
+
+    RunMeta:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        model:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        token_in:
+          type: integer
+          nullable: true
+        token_out:
+          type: integer
+          nullable: true
+        cost_usd:
+          type: string
+          nullable: true
+
+    IngestResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        runId:
+          type: string
+          format: uuid
+        summaries:
+          type: integer
+        sources:
+          type: integer
+        tokenIn:
+          type: integer
+        tokenOut:
+          type: integer
+        costUsd:
+          type: number
+        errors:
+          type: array
+          items:
+            type: string
+          nullable: true
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Unauthorized
+
+    InternalError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
