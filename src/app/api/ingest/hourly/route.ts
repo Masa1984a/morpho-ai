@@ -18,6 +18,22 @@ async function handler(req: NextRequest) {
   const reasoningEffort = 'low';
   const verbosity = 'low';
 
+  // Delete runs and related records older than 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const deleteResult = await prisma.run.deleteMany({
+    where: {
+      startedAt: {
+        lt: sevenDaysAgo
+      }
+    }
+  });
+
+  if (deleteResult.count > 0) {
+    console.log(`[Hourly Ingest] Deleted ${deleteResult.count} old runs (older than 7 days)`);
+  }
+
   // Create run record
   const run = await prisma.run.create({
     data: {
@@ -168,6 +184,6 @@ async function handler(req: NextRequest) {
   }
 }
 
-export const POST = withCronAuth(handler);
+export const GET = withCronAuth(handler);
 export const runtime = 'nodejs'; // OpenAI SDK requires Node.js runtime
 export const maxDuration = 300; // 5 minutes max execution time
