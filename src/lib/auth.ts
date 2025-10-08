@@ -17,9 +17,10 @@ export function verifyBearerToken(request: NextRequest): boolean {
 
 /**
  * Verify CRON secret for scheduled jobs
+ * Vercel Cron sends: Authorization: Bearer <CRON_SECRET>
  */
 export function verifyCronSecret(request: NextRequest): boolean {
-  const cronSecret = request.headers.get('x-cron-secret');
+  const authHeader = request.headers.get('authorization');
   const expectedSecret = process.env.CRON_SECRET;
 
   if (!expectedSecret) {
@@ -27,7 +28,12 @@ export function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 
-  return cronSecret === expectedSecret;
+  // Check if Authorization header matches Bearer <CRON_SECRET>
+  if (authHeader === `Bearer ${expectedSecret}`) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
