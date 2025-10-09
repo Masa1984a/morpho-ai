@@ -18,26 +18,26 @@ export async function generateAssetSummary(params: {
   const isDaily = kind === 'daily';
   const reasoningEffort = isDaily ? 'medium' : 'low';
 
-  const prompt = `あなたは仮想通貨のアナリストです。$${symbol} (${name}) について、以下の4つのセクションを日本語で厳密に要約してください：
+  const prompt = `You are a cryptocurrency analyst. Please provide a comprehensive summary of $${symbol} (${name}) in English, organized into the following four sections:
 
-## Overview（概要）
-資産の基本情報、用途、主要な技術仕様
+## Overview
+Basic information about the asset, use cases, and key technical specifications
 
-## Last 24h（直近1日）
-直近24時間の価格推移、出来事、重要なニュース
+## Last 24h
+Price movements, events, and significant news from the past 24 hours
 
-## Last 30d（直近30日）
-直近30日のトレンド、ボラティリティ、主要イベント
+## Last 30d
+Trends, volatility, and major events from the past 30 days
 
-## Outlook（今後の展望）
-ファンダメンタル分析、技術的要因、リスク・不確実性
+## Outlook
+Fundamental analysis, technical factors, risks, and uncertainties
 
-**重要な要件：**
-- 必ず web_search を使用して最新情報を収集すること
-- 各段落の末尾に出典URLを明記すること（例: https://...）
-- 価格や時価総額などの定量データは可能な限り数値・日付を付与
-- 推測は避け、曖昧な場合は「不明」と明記
-- Markdown形式で各セクションを ## で区切る`;
+**Critical Requirements:**
+- You MUST use web_search to gather the latest information
+- Cite source URLs at the end of each paragraph (e.g., https://...)
+- Include specific numbers and dates for quantitative data such as prices and market cap whenever possible
+- Avoid speculation; state "unknown" when information is unclear
+- Format each section using ## headers in Markdown`;
 
   try {
     // Use Responses API with web_search
@@ -127,13 +127,13 @@ export function parseSummarySections(markdown: string): {
     const header = lines[0]?.toLowerCase() || '';
     const content = lines.slice(1).join('\n').trim();
 
-    if (header.includes('overview') || header.includes('概要')) {
+    if (header.includes('overview') || header.includes('Overview')) {
       sections.overview = content;
-    } else if (header.includes('last 24h') || header.includes('直近1日') || header.includes('24時間')) {
+    } else if (header.includes('last 24h') || header.includes('Last 24h')) {
       sections.market1d = content;
-    } else if (header.includes('last 30d') || header.includes('直近30日')) {
+    } else if (header.includes('last 30d') || header.includes('Last 30d')) {
       sections.market30d = content;
-    } else if (header.includes('outlook') || header.includes('展望')) {
+    } else if (header.includes('outlook') || header.includes('Outlook')) {
       sections.outlook = content;
     }
   }
