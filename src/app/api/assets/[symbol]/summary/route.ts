@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isValidAssetSymbol } from '@/lib/utils';
+import type { Language } from '@/types';
+import { SUPPORTED_LANGUAGES } from '@/types';
 
 export async function GET(
   req: NextRequest,
@@ -8,6 +10,21 @@ export async function GET(
 ) {
   try {
     const { symbol } = await params;
+
+    // Get language from query parameter (default to 'en')
+    const { searchParams } = new URL(req.url);
+    const lang = (searchParams.get('lang') || 'en') as Language;
+
+    // Validate language
+    if (!SUPPORTED_LANGUAGES.includes(lang)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid language',
+          supported_languages: SUPPORTED_LANGUAGES
+        },
+        { status: 400 }
+      );
+    }
 
     if (!isValidAssetSymbol(symbol)) {
       return NextResponse.json(
@@ -28,9 +45,12 @@ export async function GET(
       );
     }
 
-    // Get latest summary
+    // Get latest summary for the requested language
     const summary = await prisma.summary.findFirst({
-      where: { assetId: asset.id },
+      where: {
+        assetId: asset.id,
+        language: lang,
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         run: {
@@ -77,6 +97,7 @@ export async function GET(
         name: asset.name,
         category: asset.category,
       },
+      language: summary.language,
       overview_md: summary.overviewMd,
       market_1d_md: summary.market1dMd,
       market_30d_md: summary.market30dMd,

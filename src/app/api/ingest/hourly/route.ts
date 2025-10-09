@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { generateAssetSummary, parseSummarySections, extractSourceUrls } from '@/lib/openai';
+import { generateAssetSummary, parseSummarySections, extractSourceUrls, translateSummary } from '@/lib/openai';
 import { withCronAuth } from '@/lib/auth';
 import {
   extractDomain,
@@ -10,11 +10,12 @@ import {
   retryWithBackoff,
   hashString
 } from '@/lib/utils';
-import type { AssetSymbol, RunKind } from '@/types';
+import type { AssetSymbol, RunKind, Language } from '@/types';
+import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '@/types';
 
 async function handler(req: NextRequest) {
   const kind: RunKind = 'hourly';
-  const model = 'gpt-4-turbo-preview';
+  const model = 'gpt-4o-mini';
   const reasoningEffort = 'low';
   const verbosity = 'low';
 
@@ -57,10 +58,13 @@ async function handler(req: NextRequest) {
     // Get all assets
     const assets = await prisma.asset.findMany();
 
-    for (const asset of assets) {
-      console.log(`[Hourly Ingest] Processing ${asset.symbol}...`);
+    console.log(`[Hourly Ingest] Processing ${assets.length} assets IN PARALLEL...`);
 
-      try {
+    // Process ALL assets in parallel
+    const assetResults = await Promise.allSettled(
+      assets.map(async (asset) => {
+        console.log(`[Hourly Ingest] Processing ${asset.symbol}...`);
+
         // Generate summary with retry logic
         const result = await retryWithBackoff(async () => {
           return await generateAssetSummary({
@@ -97,33 +101,114 @@ async function handler(req: NextRequest) {
           })
         );
 
-        sourcesCreated += sourceRecords.length;
-
-        // Create summary record
+        // Create English summary record
         await prisma.summary.create({
           data: {
             runId: run.id,
             assetId: asset.id,
+            language: 'en',
             overviewMd: sections.overview || 'N/A',
             market1dMd: sections.market1d || 'N/A',
             market30dMd: sections.market30d || 'N/A',
             outlookMd: sections.outlook || 'N/A',
             citations: sourceRecords.map(s => s.id),
-            confidence: 0.7, // Default confidence
+            confidence: 0.7,
           },
         });
 
-        summariesCreated++;
+        console.log(`[Hourly Ingest] ✓ ${asset.symbol} English summary completed`);
 
-        // Accumulate token usage
-        if (result.usage) {
-          totalTokenIn += result.usage.prompt_tokens || 0;
-          totalTokenOut += result.usage.completion_tokens || 0;
+        // Generate translations for other languages IN PARALLEL
+        const translationLanguages = SUPPORTED_LANGUAGES.filter(lang => lang !== 'en');
+
+        console.log(`[Hourly Ingest] Starting parallel translation for ${asset.symbol} (${translationLanguages.length} languages)...`);
+
+        const translationResults = await Promise.allSettled(
+          translationLanguages.map(async (targetLang) => {
+            console.log(`[Hourly Ingest] Translating ${asset.symbol} to ${LANGUAGE_NAMES[targetLang]}...`);
+
+            // Translate the complete English content
+            const translationResult = await retryWithBackoff(async () => {
+              return await translateSummary({
+                content: result.content,
+                targetLanguage: targetLang,
+                languageName: LANGUAGE_NAMES[targetLang],
+              });
+            });
+
+            // Parse translated sections
+            const translatedSections = parseSummarySections(translationResult.content);
+
+            // Create translated summary record
+            await prisma.summary.create({
+              data: {
+                runId: run.id,
+                assetId: asset.id,
+                language: targetLang,
+                overviewMd: translatedSections.overview || 'N/A',
+                market1dMd: translatedSections.market1d || 'N/A',
+                market30dMd: translatedSections.market30d || 'N/A',
+                outlookMd: translatedSections.outlook || 'N/A',
+                citations: sourceRecords.map(s => s.id),
+                confidence: 0.7,
+              },
+            });
+
+            console.log(`[Hourly Ingest] ✓ ${asset.symbol} ${LANGUAGE_NAMES[targetLang]} translation completed`);
+
+            return { targetLang, usage: translationResult.usage };
+          })
+        );
+
+        console.log(`[Hourly Ingest] ✓ ${asset.symbol} completed with all translations`);
+
+        // Return aggregated data for this asset
+        return {
+          asset: asset.symbol,
+          sourceRecords,
+          englishUsage: result.usage,
+          translationResults,
+        };
+      })
+    );
+
+    // Process all asset results
+    for (let i = 0; i < assetResults.length; i++) {
+      const assetResult = assetResults[i];
+      const asset = assets[i];
+
+      if (assetResult.status === 'fulfilled') {
+        const data = assetResult.value;
+
+        // Count sources and summaries
+        sourcesCreated += data.sourceRecords.length;
+        summariesCreated++; // English summary
+
+        // Accumulate English usage
+        if (data.englishUsage) {
+          totalTokenIn += data.englishUsage.prompt_tokens || 0;
+          totalTokenOut += data.englishUsage.completion_tokens || 0;
         }
 
-        console.log(`[Hourly Ingest] ✓ ${asset.symbol} completed`);
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        // Process translation results
+        for (let j = 0; j < data.translationResults.length; j++) {
+          const translationResult = data.translationResults[j];
+          const targetLang = SUPPORTED_LANGUAGES.filter(lang => lang !== 'en')[j];
+
+          if (translationResult.status === 'fulfilled') {
+            summariesCreated++;
+            if (translationResult.value.usage) {
+              totalTokenIn += translationResult.value.usage.prompt_tokens || 0;
+              totalTokenOut += translationResult.value.usage.completion_tokens || 0;
+            }
+          } else {
+            const errorMsg = translationResult.reason instanceof Error ? translationResult.reason.message : String(translationResult.reason);
+            errors.push(`${asset.symbol} (${targetLang}): ${errorMsg}`);
+            console.error(`[Hourly Ingest] ✗ ${asset.symbol} ${targetLang} translation failed:`, errorMsg);
+          }
+        }
+      } else {
+        const errorMsg = assetResult.reason instanceof Error ? assetResult.reason.message : String(assetResult.reason);
         errors.push(`${asset.symbol}: ${errorMsg}`);
         console.error(`[Hourly Ingest] ✗ ${asset.symbol} failed:`, errorMsg);
       }
@@ -186,4 +271,4 @@ async function handler(req: NextRequest) {
 
 export const GET = withCronAuth(handler);
 export const runtime = 'nodejs'; // OpenAI SDK requires Node.js runtime
-export const maxDuration = 300; // 5 minutes max execution time
+export const maxDuration = 800; // 15 minutes max execution time (for parallel translations)

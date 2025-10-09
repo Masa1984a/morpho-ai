@@ -10,6 +10,21 @@ export type ReasoningEffort = 'low' | 'medium' | 'high';
 
 export type Verbosity = 'low' | 'medium' | 'high';
 
+export type Language = 'en' | 'ja' | 'zh-CN' | 'zh-TW' | 'ko' | 'th' | 'pt' | 'es';
+
+export const SUPPORTED_LANGUAGES: Language[] = ['en', 'ja', 'zh-CN', 'zh-TW', 'ko', 'th', 'pt', 'es'];
+
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  'en': 'English',
+  'ja': '日本語',
+  'zh-CN': '简体中文',
+  'zh-TW': '繁體中文',
+  'ko': '한국어',
+  'th': 'ไทย',
+  'pt': 'Português',
+  'es': 'Español',
+};
+
 export interface AssetData {
   symbol: AssetSymbol;
   name: string;

@@ -149,3 +149,98 @@ export function extractSourceUrls(markdown: string): string[] {
   const matches = markdown.match(urlRegex) || [];
   return [...new Set(matches)]; // Remove duplicates
 }
+
+/**
+ * Translate summary sections to target language using OpenAI
+ */
+export async function translateSummary(params: {
+  content: string;
+  targetLanguage: string;
+  languageName: string;
+}): Promise<{
+  content: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}> {
+  const { content, targetLanguage, languageName } = params;
+
+  const prompt = `You are a professional translator specializing in cryptocurrency content. Please translate the following cryptocurrency analysis from English to ${languageName} (${targetLanguage}).
+
+CRITICAL REQUIREMENTS:
+- **DO NOT translate the section headers (##)**: Keep "## Overview", "## Last 24h", "## Last 30d", and "## Outlook" EXACTLY as they are in English
+- Translate ONLY the content under each section header
+- Preserve all Markdown formatting (##, bullets, etc.)
+- Keep all URLs exactly as they are
+- Maintain technical terminology accuracy
+- Keep numbers, dates, and symbols unchanged
+- Translate naturally while preserving the professional tone
+
+Original content in English:
+
+${content}
+
+Please provide the translated content in ${languageName} with:
+- Section headers (## Overview, ## Last 24h, ## Last 30d, ## Outlook) kept in English
+- Section content translated to ${languageName}
+- Same structure and formatting`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are a professional translator for cryptocurrency content.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3, // Lower temperature for more consistent translations
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      const translatedContent = data.choices?.[0]?.message?.content || '';
+
+      if (!translatedContent) {
+        throw new Error('Could not extract translated content from API response');
+      }
+
+      return {
+        content: translatedContent,
+        usage: {
+          prompt_tokens: data.usage?.prompt_tokens || 0,
+          completion_tokens: data.usage?.completion_tokens || 0,
+          total_tokens: data.usage?.total_tokens || 0,
+        },
+      };
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Translation API call timed out after 2 minutes');
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Translation API error:', error);
+    throw error;
+  }
+}

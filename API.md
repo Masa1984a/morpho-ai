@@ -6,11 +6,12 @@
 
 | 項目 | 値 |
 |------|-----|
-| **Base URL** | `https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app` |
+| **Base URL** | `https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app` |
 | **プロトコル** | HTTPS |
 | **データ形式** | JSON |
 | **文字エンコーディング** | UTF-8 |
 | **タイムゾーン** | UTC |
+| **対応言語** | English (en), 日本語 (ja), 简体中文 (zh-CN), 繁體中文 (zh-TW), 한국어 (ko), ไทย (th), Português (pt), Español (es) |
 
 ## 認証
 
@@ -49,7 +50,7 @@ GET /api/assets
 #### リクエスト例
 
 ```bash
-curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/assets" \
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets" \
   -H "Authorization: Bearer CTS_TOKENS_20251008"
 ```
 
@@ -127,10 +128,25 @@ GET /api/assets/{symbol}/summary
 |-----------|-----|------|------|
 | `symbol` | String | ✅ | 資産シンボル（`WLD`, `USDC`, `WBTC`, `WETH`） |
 
+#### クエリパラメータ
+
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|-----------|-----|------|-----------|------|
+| `lang` | String | ❌ | `en` | 言語コード（`en`, `ja`, `zh-CN`, `zh-TW`, `ko`, `th`, `pt`, `es`） |
+
 #### リクエスト例
 
 ```bash
-curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/assets/WLD/summary" \
+# 英語でサマリ取得（デフォルト）
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets/WLD/summary" \
+  -H "Authorization: Bearer CTS_TOKENS_20251008"
+
+# 日本語でサマリ取得
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets/WLD/summary?lang=ja" \
+  -H "Authorization: Bearer CTS_TOKENS_20251008"
+
+# 簡体字中国語でサマリ取得
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets/WLD/summary?lang=zh-CN" \
   -H "Authorization: Bearer CTS_TOKENS_20251008"
 ```
 
@@ -184,10 +200,11 @@ curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/
 | フィールド | 型 | 説明 |
 |-----------|-----|------|
 | `asset` | Object | 資産の基本情報 |
-| `overview_md` | String | 概要（Markdown形式） |
-| `market_1d_md` | String | 直近24時間の市況（Markdown形式） |
-| `market_30d_md` | String | 直近30日の市況（Markdown形式） |
-| `outlook_md` | String | 今後の展望（Markdown形式） |
+| `language` | String | コンテンツの言語コード（`en`, `ja`, `zh-CN`, `zh-TW`, `ko`, `th`, `pt`, `es`） |
+| `overview_md` | String | 概要（Markdown形式、指定言語） |
+| `market_1d_md` | String | 直近24時間の市況（Markdown形式、指定言語） |
+| `market_30d_md` | String | 直近30日の市況（Markdown形式、指定言語） |
+| `outlook_md` | String | 今後の展望（Markdown形式、指定言語） |
 | `confidence` | Number (0-1) | 信頼度スコア |
 | `citations` | Array | 引用元ソースIDの配列 |
 | `sources` | Array | 出典URLの詳細 |
@@ -241,11 +258,11 @@ GET /api/assets/{symbol}/prices
 
 ```bash
 # 直近24時間の価格（1時間ごと）
-curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/assets/WLD/prices?range=1d&interval=hour" \
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets/WLD/prices?range=1d&interval=hour" \
   -H "Authorization: Bearer CTS_TOKENS_20251008"
 
 # 直近30日の価格（1日ごと）
-curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/assets/USDC/prices?range=30d&interval=day" \
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/assets/USDC/prices?range=30d&interval=day" \
   -H "Authorization: Bearer CTS_TOKENS_20251008"
 ```
 
@@ -319,7 +336,7 @@ GET /api/runs/{id}
 #### リクエスト例
 
 ```bash
-curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/runs/265b5be0-7dee-4742-b687-e73a01114c80" \
+curl -X GET "https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app/api/runs/265b5be0-7dee-4742-b687-e73a01114c80" \
   -H "Authorization: Bearer CTS_TOKENS_20251008"
 ```
 
@@ -385,7 +402,7 @@ curl -X GET "https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app/api/
 ### JavaScript (fetch API)
 
 ```javascript
-const BASE_URL = 'https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app';
+const BASE_URL = 'https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app';
 const BEARER_TOKEN = 'CTS_TOKENS_20251008';
 
 // 資産一覧取得
@@ -399,9 +416,19 @@ async function getAssets() {
   return data.assets;
 }
 
-// WLDのサマリ取得
+// WLDのサマリ取得（英語）
 async function getWLDSummary() {
   const response = await fetch(`${BASE_URL}/api/assets/WLD/summary`, {
+    headers: {
+      'Authorization': `Bearer ${BEARER_TOKEN}`
+    }
+  });
+  return await response.json();
+}
+
+// WLDのサマリ取得（日本語）
+async function getWLDSummaryJa() {
+  const response = await fetch(`${BASE_URL}/api/assets/WLD/summary?lang=ja`, {
     headers: {
       'Authorization': `Bearer ${BEARER_TOKEN}`
     }
@@ -415,7 +442,11 @@ getAssets().then(assets => {
 });
 
 getWLDSummary().then(summary => {
-  console.log('WLD概要:', summary.overview_md);
+  console.log('WLD概要 (English):', summary.overview_md);
+});
+
+getWLDSummaryJa().then(summary => {
+  console.log('WLD概要 (日本語):', summary.overview_md);
 });
 ```
 
@@ -424,7 +455,7 @@ getWLDSummary().then(summary => {
 ```python
 import requests
 
-BASE_URL = 'https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app'
+BASE_URL = 'https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app'
 BEARER_TOKEN = 'CTS_TOKENS_20251008'
 
 headers = {
@@ -437,9 +468,9 @@ def get_assets():
     response.raise_for_status()
     return response.json()['assets']
 
-# USDCのサマリ取得
-def get_usdc_summary():
-    response = requests.get(f'{BASE_URL}/api/assets/USDC/summary', headers=headers)
+# USDCのサマリ取得（英語）
+def get_usdc_summary(lang='en'):
+    response = requests.get(f'{BASE_URL}/api/assets/USDC/summary?lang={lang}', headers=headers)
     response.raise_for_status()
     return response.json()
 
@@ -447,14 +478,19 @@ def get_usdc_summary():
 assets = get_assets()
 print('登録資産:', [a['symbol'] for a in assets])
 
-usdc = get_usdc_summary()
-print('USDC 直近24時間:', usdc['market_1d_md'])
+# 英語でサマリ取得
+usdc_en = get_usdc_summary('en')
+print('USDC 直近24時間 (English):', usdc_en['market_1d_md'])
+
+# 日本語でサマリ取得
+usdc_ja = get_usdc_summary('ja')
+print('USDC 直近24時間 (日本語):', usdc_ja['market_1d_md'])
 ```
 
 ### PowerShell
 
 ```powershell
-$BaseUrl = 'https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app'
+$BaseUrl = 'https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app'
 $Headers = @{
     'Authorization' = 'Bearer CTS_TOKENS_20251008'
 }
@@ -472,7 +508,7 @@ Write-Host $wbtc.overview_md
 
 ```bash
 # 環境変数設定
-export API_URL="https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app"
+export API_URL="https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app"
 export TOKEN="CTS_TOKENS_20251008"
 
 # 資産一覧
@@ -494,8 +530,7 @@ curl -X GET "$API_URL/api/assets/WLD/prices?range=30d&interval=day" \
 
 | データ | 更新頻度 | 説明 |
 |--------|---------|------|
-| サマリ（hourly） | 毎時00分 | 直近24時間の市況を更新 |
-| サマリ（daily） | 毎日06:05 UTC | 直近30日の総合分析を更新 |
+| サマリ（全言語） | 4時間ごと（00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC） | 最新の市況分析を8言語で更新 |
 | 価格データ | 未実装 | 現在は外部APIからの取得なし |
 
 ---
@@ -529,6 +564,54 @@ curl -X GET "$API_URL/api/assets/WLD/prices?range=30d&interval=day" \
 
 ---
 
+## 多言語サポート
+
+### 対応言語
+
+このAPIは8つの言語に対応しています：
+
+| 言語コード | 言語名 | 説明 |
+|-----------|--------|------|
+| `en` | English | 英語（デフォルト） |
+| `ja` | 日本語 | Japanese |
+| `zh-CN` | 简体中文 | Simplified Chinese |
+| `zh-TW` | 繁體中文 | Traditional Chinese |
+| `ko` | 한국어 | Korean |
+| `th` | ไทย | Thai |
+| `pt` | Português | Portuguese |
+| `es` | Español | Spanish |
+
+### 翻訳の仕組み
+
+1. **英語での情報収集**: まず英語で最新の暗号資産情報をウェブ検索により収集します
+2. **AI翻訳**: 収集した英語コンテンツを各言語にAIで翻訳します
+3. **言語ごとに個別のLLM呼び出し**: 各翻訳言語ごとに独立したLLM APIコールを実行します
+4. **同一データソース**: 全ての言語版は同じ英語ソースから翻訳されるため、内容の一貫性が保証されます
+
+### 使用方法
+
+サマリ取得エンドポイントに `?lang={言語コード}` クエリパラメータを追加してください：
+
+```bash
+# 日本語
+GET /api/assets/WLD/summary?lang=ja
+
+# 簡体字中国語
+GET /api/assets/WLD/summary?lang=zh-CN
+
+# 韓国語
+GET /api/assets/WLD/summary?lang=ko
+```
+
+### 注意事項
+
+- 言語を指定しない場合、デフォルトで英語 (`en`) が返されます
+- 無効な言語コードを指定した場合、`400 Bad Request` エラーが返されます
+- 全ての言語版は同じタイミングで生成されます（4時間ごと：00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC）
+- 翻訳の品質はAIモデルに依存しますが、専門用語の正確性を重視しています
+
+---
+
 ## 注意事項
 
 1. **タイムゾーン**: 全ての日時はUTCです
@@ -536,6 +619,7 @@ curl -X GET "$API_URL/api/assets/WLD/prices?range=30d&interval=day" \
 3. **Decimal型**: 価格データは文字列型のDecimalで返されます（精度保持のため）
 4. **null値**: 一部のフィールドはnullになる場合があります
 5. **データの鮮度**: サマリは最大1時間前のデータの可能性があります
+6. **多言語対応**: サマリは8言語で提供されます（`lang`パラメータで指定）
 
 ---
 
@@ -543,6 +627,8 @@ curl -X GET "$API_URL/api/assets/WLD/prices?range=30d&interval=day" \
 
 | 日付 | バージョン | 変更内容 |
 |------|-----------|---------|
+| 2025-10-09 | 1.2.0 | データ更新を4時間ごとに変更、Dailyジョブを廃止 |
+| 2025-10-09 | 1.1.0 | 多言語サポート追加（8言語対応：en, ja, zh-CN, zh-TW, ko, th, pt, es） |
 | 2025-10-08 | 1.0.0 | 初版リリース |
 
 ---
@@ -553,6 +639,6 @@ API に関する質問や問題がある場合は、プロジェクトのGitHub�
 
 ---
 
-**Base URL**: https://morpho-pyjvb3f9q-masanori-yoshidas-projects.vercel.app
+**Base URL**: https://morpho-jaidkqvl0-masanori-yoshidas-projects.vercel.app
 
 **認証**: `Authorization: Bearer CTS_TOKENS_20251008`

@@ -2,11 +2,7 @@
   "crons": [
     {
       "path": "/api/ingest/hourly",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/ingest/daily",
-      "schedule": "5 6 * * *"
+      "schedule": "0 */4 * * *"
     }
   ]
 }

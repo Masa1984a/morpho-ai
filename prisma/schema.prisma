@@ -70,6 +70,7 @@ model Summary {
   id          String   @id @default(uuid())
   runId       String
   assetId     String
+  language    String   @default("en") // ISO 639-1 code: en, ja, zh-CN, zh-TW, ko, th, pt, es
   overviewMd  String   @db.Text
   market1dMd  String   @db.Text
   market30dMd String   @db.Text
@@ -80,7 +81,7 @@ model Summary {
   run         Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
   asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
-  @@index([assetId, createdAt])
+  @@index([assetId, language, createdAt])
   @@index([runId])
   @@map("summaries")
 }
