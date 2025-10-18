@@ -43,6 +43,8 @@ export function calculateRelevanceScore(url: string, title?: string): number {
     'circle.com',
     'wbtc.network',
     'ethereum.org',
+    'tether.to',
+    'gold.tether.to',
   ];
 
   // Reputable news sources
@@ -130,6 +132,6 @@ export function formatCost(tokenIn: number, tokenOut: number, model: string): nu
  * Validate asset symbol
  */
 export function isValidAssetSymbol(symbol: string): boolean {
-  const validSymbols = ['WLD', 'USDC', 'WBTC', 'WETH'];
+  const validSymbols = ['WLD', 'USDC', 'WBTC', 'WETH', 'XAUT'];
   return validSymbols.includes(symbol.toUpperCase());
 }

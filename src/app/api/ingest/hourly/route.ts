@@ -15,7 +15,7 @@ import { SUPPORTED_LANGUAGES, LANGUAGE_NAMES } from '@/types';
 
 async function handler(req: NextRequest) {
   const kind: RunKind = 'hourly';
-  const model = 'gpt-4o-mini';
+  const model = 'gpt-5-mini';
   const reasoningEffort = 'low';
   const verbosity = 'low';
 

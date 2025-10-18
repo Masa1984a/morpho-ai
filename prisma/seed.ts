@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting seed...');
 
-  // Seed 4 assets: WLD, USDC, WBTC, WETH
+  // Seed 5 assets: WLD, USDC, WBTC, WETH, XAUt
   const assets = [
     {
       symbol: 'WLD',
@@ -46,6 +46,17 @@ async function main() {
       officialUrls: {
         website: 'https://weth.io',
         contract: 'https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+      },
+    },
+    {
+      symbol: 'XAUt',
+      name: 'Tether Gold',
+      category: 'stable',
+      chains: { networks: ['Ethereum', 'Tron'] },
+      officialUrls: {
+        website: 'https://gold.tether.to',
+        docs: 'https://tether.to/en/transparency/',
+        contract: 'https://etherscan.io/token/0x68749665ff8d2d112fa859aa293f07a622782f38',
       },
     },
   ];

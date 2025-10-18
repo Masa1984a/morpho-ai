@@ -1,4 +1,4 @@
-export type AssetSymbol = 'WLD' | 'USDC' | 'WBTC' | 'WETH';
+export type AssetSymbol = 'WLD' | 'USDC' | 'WBTC' | 'WETH' | 'XAUt';
 
 export type AssetCategory = 'coin' | 'stable' | 'wrapped';
 

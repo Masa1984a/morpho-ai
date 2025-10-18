@@ -13,10 +13,12 @@ export async function generateAssetSummary(params: {
   kind: 'hourly' | 'daily';
   allowedDomains?: string[];
 }) {
-  const { symbol, name, kind } = params;
+  const { symbol, name, kind, allowedDomains } = params;
 
   const isDaily = kind === 'daily';
-  const reasoningEffort = isDaily ? 'medium' : 'low';
+  const reasoningEffort = isDaily ? 'high' : 'medium';
+
+  const systemPrompt = 'You are a cryptocurrency analyst. Always call the web_search tool before finalizing your answer. Provide concise, citation-rich Markdown in English. The information you provide will appear on a cryptocurrency news/information site.';
 
   const prompt = `You are a cryptocurrency analyst. Please provide a comprehensive summary of $${symbol} (${name}) in English, organized into the following four sections:
 
@@ -34,6 +36,8 @@ Fundamental analysis, technical factors, risks, and uncertainties
 
 **Critical Requirements:**
 - You MUST use web_search to gather the latest information
+- Please refrain from asking questions.
+- Only provide information; do not include your recommendations.
 - Cite source URLs at the end of each paragraph (e.g., https://...)
 - Include specific numbers and dates for quantitative data such as prices and market cap whenever possible
 - Avoid speculation; state "unknown" when information is unclear
@@ -52,10 +56,25 @@ Fundamental analysis, technical factors, risks, and uncertainties
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'o4-mini',
-          input: prompt,
-          tools: [{ type: 'web_search' }],
+          model: 'gpt-5-mini',
           reasoning: { effort: reasoningEffort },
+          input: [
+            {
+              role: 'system',
+              content: [{ type: 'input_text', text: systemPrompt }],
+            },
+            {
+              role: 'user',
+              content: [{ type: 'input_text', text: prompt }],
+            },
+          ],
+          tools: [
+            {
+              type: 'web_search',
+              ...(allowedDomains ? { allowed_domains: allowedDomains } : {}),
+            },
+          ],
+          tool_choice: 'auto',
         }),
         signal: controller.signal,
       });
@@ -70,8 +89,19 @@ Fundamental analysis, technical factors, risks, and uncertainties
       const data = await response.json();
 
       // Parse response according to Responses API format
-      const messageObject = data.output?.find((item: any) => item.type === 'message');
-      const content = messageObject?.content?.[0]?.text || '';
+      let content = '';
+
+      if (Array.isArray(data.output_text)) {
+        content = data.output_text.join('\n');
+      } else if (typeof data.output_text === 'string') {
+        content = data.output_text;
+      }
+
+      if (!content && Array.isArray(data.output)) {
+        const messageObject = data.output.find((item: any) => item.type === 'message');
+        const messageContent = messageObject?.content?.find((part: any) => part.type === 'output_text' || part.type === 'text');
+        content = messageContent?.text || '';
+      }
 
       if (!content) {
         console.error('Unexpected API response structure:', JSON.stringify(data, null, 2));
@@ -88,7 +118,7 @@ Fundamental analysis, technical factors, risks, and uncertainties
           completion_tokens: usage.output_tokens || 0,
           total_tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
         },
-        model: data.model || 'o4-mini',
+        model: data.model || 'gpt-5-mini',
       };
     } catch (error: any) {
       clearTimeout(timeoutId);
@@ -167,9 +197,8 @@ export async function translateSummary(params: {
 }> {
   const { content, targetLanguage, languageName } = params;
 
-  const prompt = `You are a professional translator specializing in cryptocurrency content. Please translate the following cryptocurrency analysis from English to ${languageName} (${targetLanguage}).
-
-CRITICAL REQUIREMENTS:
+  const systemPrompt = `You are a professional translator for cryptocurrency content.
+## CRITICAL REQUIREMENTS:
 - **DO NOT translate the section headers (##)**: Keep "## Overview", "## Last 24h", "## Last 30d", and "## Outlook" EXACTLY as they are in English
 - Translate ONLY the content under each section header
 - Preserve all Markdown formatting (##, bullets, etc.)
@@ -178,33 +207,43 @@ CRITICAL REQUIREMENTS:
 - Keep numbers, dates, and symbols unchanged
 - Translate naturally while preserving the professional tone
 
-Original content in English:
-
-${content}
-
-Please provide the translated content in ${languageName} with:
+## Please provide the translated content in ${languageName} with:
 - Section headers (## Overview, ## Last 24h, ## Last 30d, ## Outlook) kept in English
 - Section content translated to ${languageName}
-- Same structure and formatting`;
+- Same structure and formatting
+`;
+
+  const prompt = `Please translate the following cryptocurrency analysis from English to ${languageName} (${targetLanguage}).
+"""
+  ## Original content in English:
+${content}
+"""
+`;
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are a professional translator for cryptocurrency content.' },
-            { role: 'user', content: prompt }
+          model: 'gpt-5-nano',
+          reasoning: { effort: `medium` },
+          input: [
+            {
+              role: 'system',
+              content: [{ type: 'input_text', text: systemPrompt }],
+            },
+            {
+              role: 'user',
+              content: [{ type: 'input_text', text: prompt }],
+            },
           ],
-          temperature: 0.3, // Lower temperature for more consistent translations
         }),
         signal: controller.signal,
       });
@@ -218,7 +257,19 @@ Please provide the translated content in ${languageName} with:
 
       const data = await response.json();
 
-      const translatedContent = data.choices?.[0]?.message?.content || '';
+      let translatedContent = '';
+
+      if (Array.isArray(data.output_text)) {
+        translatedContent = data.output_text.join('\n');
+      } else if (typeof data.output_text === 'string') {
+        translatedContent = data.output_text;
+      }
+
+      if (!translatedContent && Array.isArray(data.output)) {
+        const messageObject = data.output.find((item: any) => item.type === 'message');
+        const messageContent = messageObject?.content?.find((part: any) => part.type === 'output_text' || part.type === 'text');
+        translatedContent = messageContent?.text || '';
+      }
 
       if (!translatedContent) {
         throw new Error('Could not extract translated content from API response');
@@ -227,9 +278,11 @@ Please provide the translated content in ${languageName} with:
       return {
         content: translatedContent,
         usage: {
-          prompt_tokens: data.usage?.prompt_tokens || 0,
-          completion_tokens: data.usage?.completion_tokens || 0,
-          total_tokens: data.usage?.total_tokens || 0,
+          prompt_tokens: data.usage?.input_tokens || data.usage?.prompt_tokens || 0,
+          completion_tokens: data.usage?.output_tokens || data.usage?.completion_tokens || 0,
+          total_tokens:
+            (data.usage?.input_tokens || data.usage?.prompt_tokens || 0) +
+            (data.usage?.output_tokens || data.usage?.completion_tokens || 0),
         },
       };
     } catch (error: any) {
