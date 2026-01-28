@@ -1,8 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/ingest/hourly",
-      "schedule": "15 23 * * *"
-    }
-  ]
+  "crons": []
 }
